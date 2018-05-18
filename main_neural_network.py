@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 
 # Personal libraries
 from Algorithms.process_data import obtaining_data as obtain
+from Algorithms.process_data import data_preprocessing_grid as grid_process
+from Algorithms.process_data import data_preprocessing as preprocess
 from Algorithms.neural_network import assess
 from Algorithms.neural_network import training
 
@@ -16,6 +18,7 @@ label = 'bcc'
 
 # Loading Data
 label_data,raman_data,tissues_used = obtain.preProcessBCC(folder_name=folder,testing_label=label)
+X,y = grid_process.gridPreprocessing(label_data,raman_data)
 
 ### Training ###
 # Loading Data if data is already saved

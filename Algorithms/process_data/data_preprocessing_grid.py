@@ -1,6 +1,7 @@
 import numpy as np
 
 from Algorithms.process_data import data_preprocessing as preprocess
+from Algorithms.process_data import baseline_correction as base_correct
 
 
 # Function that returns the number of grids within the data, given the grid size of data that we want
@@ -218,10 +219,28 @@ def gridPreprocessing(label_data,raman_data):
     X, data_shape_X = preprocess.organiseData(X_label, X_raman)
     y, data_shape_y = preprocess.organiseData(y_label, y_raman)
 
+    del X_raman
+    del y_raman
+
+    # Baseline Correction
+    print('Baseline Correction')
+    base_correct_X = base_correct.polynomial(X[:,:-1],2)
+    base_correct_y = base_correct.polynomial(y[:,:-1],2)
+
+    X[:,:-1] = base_correct_X
+    y[:,:-1] = base_correct_y
+
+    del base_correct_X
+    del base_correct_y
+
     # Feature Scaling
     print('Normalizing Data')
     from sklearn.preprocessing import normalize
-    X_train, X_test, sc = normalize(X[:, :-1], y[:, :-1])
+    X_train = normalize(X[:,:-1])
+    X_test = normalize(y[:,:-1])
+
+    del X
+    del y
 
     # Reverting back to list of 3D matrix form
     print('Reverting')
@@ -233,4 +252,4 @@ def gridPreprocessing(label_data,raman_data):
     overlap_X = obtainOverlapGridData(X_label, training_image_data, 3)
     overlap_y = obtainOverlapGridData(y_label, testing_image_data, 3)
 
-    return overlap_X,overlap_y
+    return (overlap_X,X_label),(overlap_y,y_label)

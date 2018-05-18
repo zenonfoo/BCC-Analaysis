@@ -86,7 +86,7 @@ def convert(matrix,index):
 def preProcessAllLabels(folder_name):
 
     # Initializing variables
-    known_labels = ['bcc','dermis','fat','epi','dye']
+    known_labels = ['bcc','dermis','epi']
     label = []
     RamanData = []
     tissues_used = []
@@ -109,42 +109,30 @@ def preProcessAllLabels(folder_name):
                 # Checking just for aforementioned keys in all the files
                 present_labels = [item for item in keys if item in known_labels]
 
-                # Only if bcc is within the image do we take the rest of the data
-                if 'bcc' in present_labels:
+                # # Only if bcc is within the image do we take the rest of the data
+                # if 'bcc' in present_labels:
 
-                    label_map = np.zeros(mat[present_labels[0]].shape)
+                label_map = np.zeros(mat[present_labels[0]].shape)
 
-                    for key in present_labels:
+                for key in present_labels:
 
-                        if key == 'bcc':
+                    if key == 'bcc':
 
-                            temp = convert(np.array(mat[key]), 1)
-                            label_map = label_map + temp
+                        temp = convert(np.array(mat[key]), 1)
+                        label_map = label_map + temp
 
-                        elif key == 'dermis':
+                    elif key == 'dermis':
 
-                            temp = convert(np.array(mat[key]),2)
-                            label_map = label_map + temp
+                        temp = convert(np.array(mat[key]),2)
+                        label_map = label_map + temp
 
-                        elif key == 'fat':
+                    elif key == 'epi':
 
-                            temp = convert(np.array(mat[key]),3)
-                            label_map = label_map + temp
+                        temp = convert(np.array(mat[key]),3)
+                        label_map = label_map + temp
 
-                        elif key == 'epi':
 
-                            temp = convert(np.array(mat[key]),4)
-                            label_map = label_map + temp
-
-                        elif key == 'dye':
-
-                            temp = convert(np.array(mat[key]),5)
-                            label_map = label_map + temp
-
-                    RamanMap = np.array(mat['map_t' + folder_number])
-
-                else:
-                    continue
+                RamanMap = np.array(mat['map_t' + folder_number])
 
                 # Cheking for dimension mismatch
                 # If there is no dimension mismatch organise data to be raman input and BCC/NonBCC cell output
