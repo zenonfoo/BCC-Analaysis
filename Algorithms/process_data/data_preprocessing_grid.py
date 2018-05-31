@@ -79,12 +79,12 @@ def obtainLabel(data,label,gridlength):
     return data
 
 # Main function for obtaining data in the grid format
-def obtainNonOverlapGridData(label, raman, gridlength):
+def obtainNonOverlapGridData(label, raman, gridlength, raman_length):
 
     row_size = initializeGrid(label, gridlength)
 
     # Initializing memory to store our input data for out network
-    data = np.zeros((row_size, 1024 * (gridlength ** 2) + 1))
+    data = np.zeros((row_size, raman_length * (gridlength ** 2) + 1))
 
     # Cut off excess image
     label, raman = cut_off(label, raman, gridlength)
@@ -96,10 +96,9 @@ def obtainNonOverlapGridData(label, raman, gridlength):
     for item in raman:
 
         # Reduce by one dimension
-        temp = item.reshape(1024,item.shape[1]*item.shape[2])
+        temp = item.reshape(raman_length,item.shape[1]*item.shape[2])
 
         # Initialize variable
-        raman_length = 1024
         row = varying_row
         column_index = 0
 
@@ -112,24 +111,26 @@ def obtainNonOverlapGridData(label, raman, gridlength):
 
     return data
 
-def obtainOverlapGridData(label,raman,gridlength):
+def obtainOverlapGridData(label,raman,gridlength,raman_length):
 
     # Initializing row size
     row_size = 0
 
+    # For multiple images
     if type(label) is list:
 
         for item in label:
             row_size += (item.shape[0] - gridlength + 1) * (item.shape[1] - gridlength + 1)
 
+    # For a single image
     else:
 
         row_size += (label.shape[0] - gridlength + 1) * (label.shape[1] - gridlength + 1)
 
-    data = np.zeros([row_size,1024*(gridlength**2)+1])
-
+    data = np.zeros([row_size, raman_length * (gridlength ** 2) + 1])
     row_counter = 0
 
+    # For multiple images
     if type(label) is list:
         for (temp_label,temp_raman) in zip(label,raman):
             for row in range(temp_label.shape[0]-gridlength+1):
@@ -140,7 +141,7 @@ def obtainOverlapGridData(label,raman,gridlength):
                     for inner_row in range(gridlength):
                         for inner_column in range(gridlength):
 
-                            data[row_counter,column_counter*1024:(column_counter+1)*1024] = temp_raman[:,row+inner_row,column+inner_column]
+                            data[row_counter,column_counter*raman_length:(column_counter+1)*raman_length] = temp_raman[:,row+inner_row,column+inner_column]
                             column_counter += 1
 
                             if column_counter == np.ceil(gridlength/2):
@@ -148,6 +149,7 @@ def obtainOverlapGridData(label,raman,gridlength):
 
                     row_counter += 1
 
+    # For a single image
     else:
         for row in range(label.shape[0] - gridlength + 1):
             for column in range(label.shape[1] - gridlength + 1):
@@ -157,7 +159,7 @@ def obtainOverlapGridData(label,raman,gridlength):
                 for inner_row in range(gridlength):
                     for inner_column in range(gridlength):
 
-                        data[row_counter,column_counter*1024:(column_counter+1)*1024] = raman[:,row+inner_row,column+inner_column]
+                        data[row_counter,column_counter*raman_length:(column_counter+1)*raman_length] = raman[:,row+inner_row,column+inner_column]
                         column_counter += 1
 
                         if column_counter == np.ceil(gridlength/2):
@@ -205,51 +207,3 @@ def revert(raman,data_shape):
 
     return data
 
-# Preprocesses data
-def gridPreprocessing(label_data,raman_data):
-
-    # Excluding one image for testing while the rest is used for
-    X_label = label_data[:-1]
-    X_raman = raman_data[:-1]
-    y_label = label_data[-1]
-    y_raman = raman_data[-1]
-
-    # Organising Data Into 2D Matrix
-    print('Organising Data Into 2D Matrix')
-    X, data_shape_X = preprocess.organiseData(X_label, X_raman)
-    y, data_shape_y = preprocess.organiseData(y_label, y_raman)
-
-    del X_raman
-    del y_raman
-
-    # Baseline Correction
-    print('Baseline Correction')
-    base_correct_X = base_correct.polynomial(X[:,:-1],2)
-    base_correct_y = base_correct.polynomial(y[:,:-1],2)
-
-    X[:,:-1] = base_correct_X
-    y[:,:-1] = base_correct_y
-
-    del base_correct_X
-    del base_correct_y
-
-    # Feature Scaling
-    print('Normalizing Data')
-    from sklearn.preprocessing import normalize
-    X_train = normalize(X[:,:-1])
-    X_test = normalize(y[:,:-1])
-
-    del X
-    del y
-
-    # Reverting back to list of 3D matrix form
-    print('Reverting')
-    training_image_data = revert(X_train, data_shape_X)
-    testing_image_data = revert(X_test, data_shape_y)
-
-    # Obtaining Grid Data
-    print('Obtaining Grid Data')
-    overlap_X = obtainOverlapGridData(X_label, training_image_data, 3)
-    overlap_y = obtainOverlapGridData(y_label, testing_image_data, 3)
-
-    return (overlap_X,X_label),(overlap_y,y_label)

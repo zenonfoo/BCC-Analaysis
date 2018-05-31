@@ -67,7 +67,6 @@ def neural_network(X_train, y_train, parameters):
     # Making the ANN
     from keras.models import Sequential
     from keras.layers import Dense
-    from keras.layers import Dropout
 
     # Initializing the ANN
     classifier = Sequential()
@@ -79,19 +78,17 @@ def neural_network(X_train, y_train, parameters):
             # kernel_initializer refers to inital weights
             classifier.add(Dense(units=parameters['units'], kernel_initializer=parameters['initializer'],
                                  activation=parameters['activation'], input_dim=parameters['input_dimension']))
-            classifier.add(Dropout(rate=0.2))
 
         else:
             classifier.add(Dense(units=parameters['units'], kernel_initializer=parameters['initializer'],
                                  activation=parameters['activation']))
-            classifier.add(Dropout(rate=0.2))
 
     # Adding output layer
     classifier.add(Dense(units=1, kernel_initializer=parameters['initializer'],
                          activation=parameters['activation']))
 
     # Initializing classes to store loss and accuracy history
-    history = History()
+    # history = History()
 
     # Compiling the ANN
     # optimizer: algorithm you want to use to find the optimal set of weights, adam is stochastic gradient descent
@@ -99,6 +96,6 @@ def neural_network(X_train, y_train, parameters):
     classifier.compile(optimizer=parameters['optimizer'], loss='binary_crossentropy', metrics=['accuracy'])
 
     # Fitting classifier to training set
-    classifier.fit(X_train, y_train, batch_size=parameters['batch'], epochs=parameters['epochs'], callbacks=[history])
+    classifier.fit(X_train, y_train, batch_size=parameters['batch'], epochs=parameters['epochs'])
 
-    return classifier,history
+    return classifier

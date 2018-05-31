@@ -2,15 +2,15 @@
 import numpy as np
 from pylab import bone
 import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
 
 # Personal libraries
 from Algorithms.process_data import obtaining_data as obtain
-from Algorithms.process_data import data_preprocessing_grid as grid_process
 from Algorithms.process_data import data_preprocessing as preprocess
+from Algorithms.process_data import data_preprocessing_grid as grid_process
 from Algorithms.neural_network import assess
 from Algorithms.neural_network import training
 from Algorithms.process_data import baseline_correction as base_correct
-
 
 ### Preprocessing Data ###
 # Initializing Variables
@@ -20,24 +20,49 @@ label = 'bcc'
 # Loading Data
 label_data,raman_data,tissues_used = obtain.preProcessBCC(folder_name=folder,testing_label=label)
 
-# Loading All Data
-label_data,raman_data,tissues_used = obtain.preProcessAllLabels(folder)
+# Spltting into Training and Testing Set
+print("Splitting data into training and testing set")
+train_set,train_shapes = preprocess.organiseData(label_data[:-4],raman_data[:-4])
+test_set,test_shapes = preprocess.organiseData(label_data[-4:],raman_data[-4:])
 
-### Training ###
-# Loading Data if data is already saved
-print('Loading Data')
-folder_name = 'BCC&NoBCC_Classification/4/BCC_Data_4.npy'
-data,X,y = training.import_data(folder_name)
+label_data_train = label_data[:-4]
+label_data_test = label_data[-4:]
+X_train = train_set[:,:-1]
+y_train = train_set[:,-1]
+X_test = test_set[:,:-1]
 
-# Splitting dataset into training and test set
-print('Splitting Data')
-from sklearn.model_selection import train_test_split
-X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=0.1,stratify=y)
+# Clearing memory
+del train_set
+del test_set
+del raman_data
+del label_data
+
+# Baseline Correction
+print("Baseline Correction")
+X_train = base_correct.polynomial(X_train,2)
+X_test = base_correct.polynomial(X_test,2)
 
 # Feature Scaling
-# sc variable is to be used later on to fit testing data
-print('Normalizing Data')
+print("Feature Scaling")
 X_train,X_test,sc = training.normalize(X_train,X_test)
+
+# PCA
+print("Performing PCA")
+num_pca = 100
+pca = PCA()
+pca.fit(X_train)
+X_train_pca = pca.transform(X_train)
+X_train_pca = X_train_pca[:,:num_pca]
+X_test_pca = pca.transform(X_test)
+X_test_pca = X_test_pca[:,:num_pca]
+
+# Grid processing
+print("Grid Preprocessing")
+grid_length = 5
+X_train_pca = grid_process.revert(X_train_pca,train_shapes)
+X_test_pca = grid_process.revert(X_test_pca,test_shapes)
+X_train_pca = grid_process.obtainOverlapGridData(label_data_train,X_train_pca,grid_length,num_pca)
+X_test_pca = grid_process.obtainOverlapGridData(label_data_test,X_test_pca,grid_length,num_pca)
 
 # Initializing parameters for neural network
 parameters = training.create_paramaters(input_dim=9216,units=500,layers=4,initializer='uniform',
