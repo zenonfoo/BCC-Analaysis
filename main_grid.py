@@ -8,7 +8,6 @@ from sklearn.decomposition import PCA
 from Algorithms.process_data import obtaining_data as obtain
 from Algorithms.process_data import data_preprocessing as preprocess
 from Algorithms.process_data import data_preprocessing_grid as grid_process
-from Algorithms.neural_network import assess
 from Algorithms.neural_network import training
 from Algorithms.process_data import baseline_correction as base_correct
 
@@ -30,6 +29,7 @@ label_data_test = label_data[-4:]
 X_train = train_set[:,:-1]
 y_train = train_set[:,-1]
 X_test = test_set[:,:-1]
+test_tissue = tissues_used[-4:]
 
 # Clearing memory
 del train_set
@@ -48,7 +48,7 @@ X_train,X_test,sc = training.normalize(X_train,X_test)
 
 # PCA
 print("Performing PCA")
-num_pca = 100
+num_pca = 50
 pca = PCA()
 pca.fit(X_train)
 X_train_pca = pca.transform(X_train)
@@ -56,30 +56,30 @@ X_train_pca = X_train_pca[:,:num_pca]
 X_test_pca = pca.transform(X_test)
 X_test_pca = X_test_pca[:,:num_pca]
 
+# Clearing memory
+del X_train
+del X_test
+
 # Grid processing
 print("Grid Preprocessing")
-grid_length = 5
+grid_length = 9
 X_train_pca = grid_process.revert(X_train_pca,train_shapes)
 X_test_pca = grid_process.revert(X_test_pca,test_shapes)
 X_train_pca = grid_process.obtainOverlapGridData(label_data_train,X_train_pca,grid_length,num_pca)
 X_test_pca = grid_process.obtainOverlapGridData(label_data_test,X_test_pca,grid_length,num_pca)
+y_train = X_train_pca[:,-1]
+X_train_pca = X_train_pca[:,:-1]
+X_test_pca = X_test_pca[:,:-1]
 
 # Initializing parameters for neural network
-parameters = training.create_paramaters(input_dim=9216,units=500,layers=4,initializer='uniform',
+input_dimension = int(X_train_pca.shape[1])
+layer_size = int(input_dimension/2)
+parameters = training.create_paramaters(input_dim=input_dimension,units=layer_size,layers=4,initializer='uniform',
                                         validation_split=0,activation='sigmoid',output_activation='sigmoid',
-                                        optimizer='adam',batch=5000,epochs=30)
+                                        optimizer='adam',batch=5000,epochs=50)
 
 # Training Neural Network
-classifier,history = training.neural_network(X[:,:-1],X[:,-1],parameters)
-
-### Testing ###
-# ROC Curve
-# Initializing thresholds
-thresholds = np.arange(0.1,1,0.02)
-
-# Generating ROC data
-print('Generating ROC')
-roc = assess.ROC(classifier,X_test,y_test,thresholds)
+classifier = training.neural_network(X_train_pca,y_train,parameters)
 
 ### Plotting probability distribution as labelled image
 
@@ -92,22 +92,18 @@ def make_image(image_data):
     plt.pcolor(image)
     plt.axis('image')
     plt.axis('off')
-    # plt.colorbar()
-
+    plt.colorbar()
 
 bone()
+multiplier = int(X_train_pca.shape[0]/12)
 
-for item,tissue in zip(label_data,tissues_used):
+for num,tissue in enumerate(test_tissue):
 
-    image = np.rot90(item)
-    plt.pcolor(image)
-    plt.axis('off')
-    plt.axis('image')
+    image = classifier.predict(X_test_pca[num*multiplier:(num+1)*multiplier,:])
+    make_image(image)
     plt.title('Tissue ' + tissue)
-    plt.savefig('Tissue ' + tissue)
+    plt.savefig('Tissue ' + tissue + ' PCA50 9x9 Grid')
     plt.close()
-
-
 
 
 

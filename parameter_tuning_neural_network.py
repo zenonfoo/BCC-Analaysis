@@ -1,166 +1,123 @@
-import matplotlib.pyplot as plt
+# Built in libraries
 import numpy as np
 import pandas as pd
-from numpy import trapz
+from pylab import bone
+import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
 
-from Algorithms.neural_network import assess as testing
-from Algorithms.neural_network import training as training
+
+# Personal libraries
+from Algorithms.process_data import obtaining_data as obtain
 from Algorithms.process_data import data_preprocessing as preprocess
-
-### Investigating different learning rate decays ###
+from Algorithms.neural_network import assess
+from Algorithms.neural_network import training
+from Algorithms.process_data import baseline_correction as base_correct
 
 ### Preprocessing Data ###
 # Initializing Variables
-folder = './RamanData/tissue_'
+folder = './Data/RamanData/tissue_'
 label = 'bcc'
 
 # Loading Data
-label_data,raman_data,tissues_used = preprocess.preProcessBCC(folder_name=folder,testing_label=label)
+label_data,raman_data,tissues_used = obtain.preProcessBCC(folder_name=folder,testing_label=label)
 
-# Processing Data
-data = preprocess.organiseData(label=label_data,raman=raman_data)
+# Spltting into Training and Testing Set
+print("Splitting data into training and testing set")
+train_set,train_shapes = preprocess.organiseData(label_data[:-4],raman_data[:-4])
+test_set,test_shapes = preprocess.organiseData(label_data[-4:],raman_data[-4:])
 
-### Training ###
-# Separating input and output data
-X = data[:, :-1]
-y = data[:, -1]
+label_data_train = label_data[:-3]
+label_data_test = label_data[-3:]
+X_train = train_set[:,:-1]
+y_train = train_set[:,-1]
+X_test = test_set[:,:-1]
+y_test = test_set[:,-1]
+test_tissue = tissues_used[-4:]
 
-# Loading Data if data is already saved
-print('Loading Data')
-folder_name = 'BCC&NoBCC_Classification/2/BCC_Data_2.npy'
-data,X,y = training.import_data(folder_name)
+# Clearing memory
+del train_set
+del test_set
+del raman_data
+del label_data
 
-# Splitting dataset into training and test set
-print('Splitting Data')
-X_train, X_test, y_train, y_test = training.split(X,y)
+# Baseline Correction
+print("Baseline Correction")
+X_train = base_correct.polynomial(X_train,2)
+X_test = base_correct.polynomial(X_test,2)
 
 # Feature Scaling
-# sc variable is to be used later on to fit testing data
-print('Normalizing Data')
+print("Feature Scaling")
 X_train,X_test,sc = training.normalize(X_train,X_test)
 
+# PCA
+print("Performing PCA")
+num_pca = 100
+pca = PCA()
+pca.fit(X_train)
+X_train_pca = pca.transform(X_train)
+X_train_pca = X_train_pca[:,:num_pca]
+X_test_pca = pca.transform(X_test)
+X_test_pca = X_test_pca[:,:num_pca]
+
 # Initializing different layers
-layers = np.arange(1,5)
+layers = np.arange(1,6)
 
 # Initializing different units
-units = np.arange(100,1000,100)
-
-# Initializing different epochs
-epochs = np.arange(5,50,5)
+units = np.arange(10,110,10)
 
 # Initializing variable to store ROC Data
-ROC_Data = []
+ROC_Data = {}
 
-# Initializing variable to store history data
-history_data = []
+# Initializing thresholds for calculating ROC
+thresholds = np.arange(0.1, 1, 0.02)
 
 # Trying different parameters
  # sgd = optimizers.SGD(lr=rate)
 
-for epoch in epochs:
+for layer in layers:
 
-# Initializing parameters for neural network
-    parameters = training.create_paramaters(input_dim=1024,units=100,layers=3,initializer='uniform',
-                                        validation_split=0,activation='sigmoid',output_activation='sigmoid',
-                                        optimizer='adam',batch=1000, epochs=epoch)
+    ROC_Data[layers] = []
 
-    # Training neural network
-    classifier, history = training.neural_network(X_train,y_train,parameters)
+    for unit in units:
 
-    history_data.append(history)
+        # Initializing parameters for neural network
+            parameters = training.create_paramaters(input_dim=100,units=unit,layers=layer,initializer='uniform',
+                                                validation_split=0,activation='sigmoid',output_activation='sigmoid',
+                                                optimizer='adam',batch=1000,epochs=50)
 
-    ### Testing ###
-    # ROC Curve
-    # Initializing thresholds
-    thresholds = np.arange(0.1, 1, 0.02)
+            # Training neural network
+            classifier = training.neural_network(X_train_pca,y_train,parameters)
 
-    # Generating ROC data
-    roc = testing.ROC(classifier, X_test, y_test, thresholds)
+            ### Testing ###
+            # ROC Curve
+            # Generating ROC data - returns a dataframe with columns = [TPR,FPR,Thresholds]
+            roc = assess.ROC(classifier, X_test_pca, y_test, thresholds)
 
-    # Generating ROC column
-    # roc['Units'] = [unit]*len(thresholds)
-    # roc['Layers'] = [layer]*len(thresholds)
-    roc['Epochs'] = [epoch]*len(thresholds)
+            # Storing ROC Data
+            ROC_Data[layers].append(roc)
 
-    if len(ROC_Data) == 0:
-        ROC_Data = roc
-    else:
-        ROC_Data = pd.concat([ROC_Data,roc],axis=0)
-
+# Initializing DataFrame to store AUC Data - columns:layers, rows:units
+AUC = np.zeros((len(layers),len(units)))
+AUC = pd.DataFrame(AUC)
+AUC.columns = units
 
 # Converting ROC_Data into dictionary with normalized Area Under ROC Data
 thresh = len(thresholds)
-area = []
-for item in range(len(layers)*len(units)):
+row_counter = 0
 
-    info = {}
-    begin = item*thresh
-    end = (item+1)*thresh
-    FPR = ROC_Data['FPR'].iloc[begin:end]
-    TPR = ROC_Data['TPR'].iloc[begin:end]
-    FPR = FPR[::-1]
-    TPR = TPR[::-1]
-    info['layers'] = ROC_Data['Layers'].iloc[begin]
-    info['units'] = ROC_Data['Units'].iloc[begin]
-    info['area'] = trapz(TPR,x=FPR)/(max(TPR)*max(FPR))
-    info['accuracy'] = history_data[item].acc
-    info['losses'] = history_data[item].losses
-    area.append(info)
+for key in ROC_Data:
 
-# Plotting scatter plot of units, layers and normalized area under ROC
-x=[]
-y=[]
-z=[]
-for item in area:
+    column_counter = 0
 
-    x.append(item['layers'])
-    y.append(item['units'])
-    z.append(item['area'])
+    for item in ROC_Data[key]:
 
-plt.scatter(x=x,y=y,c=z)
+        FPR = item['FPR']
+        TPR = item['TPR']
+        FPR = FPR[::-1]
+        TPR = TPR[::-1]
+        AUC.iloc[row_counter,column_counter] = np.trapz(TPR, x=FPR) / (max(TPR) * max(FPR))
+        column_counter += 1
 
-# Plotting ROC
-thresh = len(thresholds)
-area = []
+    row_counter += 1
 
-for item in range(len(epochs)):
-
-    info = {}
-    begin = item*thresh
-    end = (item+1)*thresh
-
-    if ROC_Data['Epochs'].iloc[begin] == 10:
-        FPR = ROC_Data['FPR'].iloc[begin:end]
-        TPR = ROC_Data['TPR'].iloc[begin:end]
-        plt.plot(FPR,TPR,label='Epochs ' + str(epochs[item]))
-
-plt.close()
-plt.close()
-plt.close()
-plt.close()
-
-fig, ax = plt.subplots()
-counter = 1
-for label, df in temp.groupby('layers'):
-    df.plot('units', 'area', ax=ax, label='Layers: ' + str(counter))
-    counter += 1
-plt.legend()
-
-
-# Converting ROC_Data into dictionary with normalized Area Under ROC Data
-thresh = len(thresholds)
-info = {}
-info['layers'] = []
-info['units'] = []
-info['area'] = []
-for item in range(len(layers)*len(units)):
-
-    begin = item*thresh
-    end = (item+1)*thresh
-    FPR = temp['FPR'].iloc[begin:end]
-    TPR = temp['TPR'].iloc[begin:end]
-    FPR = FPR[::-1]
-    TPR = TPR[::-1]
-    info['layers'].append(temp['Layers'].iloc[begin])
-    info['units'].append(temp['Units'].iloc[begin])
-    info['area'].append(trapz(TPR,x=FPR)/(max(TPR)*max(FPR)))
+# Plotting AUC
