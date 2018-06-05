@@ -21,15 +21,17 @@ label_data,raman_data,tissues_used = obtain.preProcessBCC(folder_name=folder,tes
 
 # Spltting into Training and Testing Set
 print("Splitting data into training and testing set")
-train_set,train_shapes = preprocess.organiseData(label_data[:-4],raman_data[:-4])
-test_set,test_shapes = preprocess.organiseData(label_data[-4:],raman_data[-4:])
+no_testing = 4
+train_set,train_shapes = preprocess.organiseData(label_data[:-no_testing],raman_data[:-no_testing])
+test_set,test_shapes = preprocess.organiseData(label_data[-no_testing:],raman_data[-no_testing:])
 
-label_data_train = label_data[:-4]
-label_data_test = label_data[-4:]
+label_data_train = label_data[:-no_testing]
+label_data_test = label_data[-no_testing:]
 X_train = train_set[:,:-1]
 y_train = train_set[:,-1]
 X_test = test_set[:,:-1]
-test_tissue = tissues_used[-4:]
+y_test = test_set[:,-1]
+test_tissue = tissues_used[-no_testing:]
 
 # Clearing memory
 del train_set

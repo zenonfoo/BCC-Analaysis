@@ -7,7 +7,7 @@ from Algorithms.neural_network import training as training
 
 # Loading Data if data
 print('Loading Data')
-folder_name = 'BCC&NoBCC_Classification/4/BCC_Data_4.npy'
+folder_name = 'Data/BCC&NoBCC_Classification/4/BCC_Data_4.npy'
 data,X,y = training.import_data(folder_name)
 
 # Feature Scaling
@@ -20,7 +20,7 @@ pca = PCA()
 pca.fit(X)
 
 # Plotting Explained Variance Ratio
-plt.bar(range(1,10),pca.explained_variance_ratio_[:9],alpha=0.7)
+plt.bar(range(1,100),pca.explained_variance_ratio_[:100],alpha=0.7)
 plt.xlabel('Principal Component Index')
 plt.ylabel('Explained Variance Ratio')
 plt.legend()
