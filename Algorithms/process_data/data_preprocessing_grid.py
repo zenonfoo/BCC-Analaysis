@@ -182,7 +182,7 @@ def revert(raman,data_shape):
             num_row = item[0]
             num_column = item[1]
 
-            temp = np.zeros((1024,num_row,num_column))
+            temp = np.zeros((raman.shape[1],num_row,num_column))
 
             for row in range(item[0]):
                 for column in range(item[1]):
@@ -196,7 +196,7 @@ def revert(raman,data_shape):
         num_row = data_shape[0]
         num_column = data_shape[1]
 
-        temp = np.zeros((1024, num_row, num_column))
+        temp = np.zeros((raman.shape[1], num_row, num_column))
 
         for row in range(data_shape[0]):
             for column in range(data_shape[1]):

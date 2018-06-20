@@ -2,13 +2,26 @@
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
+from Algorithms.process_data import obtaining_data as obtain
+from Algorithms.process_data import data_preprocessing as preprocess
+from Algorithms.process_data import baseline_correction as base_correct
 
 from Algorithms.neural_network import training as training
 
-# Loading Data if data
+# Loading Data
 print('Loading Data')
-folder_name = 'Data/BCC&NoBCC_Classification/4/BCC_Data_4.npy'
-data,X,y = training.import_data(folder_name)
+folder = 'Data/RamanData/tissue_'
+label = 'bcc'
+label_data,raman_data,tissues_used = obtain.preProcessBCC(folder_name=folder,testing_label=label)
+X,shapes = preprocess.organiseData(label_data,raman_data)
+X = X[:,:-1]
+
+del label_data
+del raman_data
+
+# Baseline Correction
+print("Baseline Correction")
+X = base_correct.polynomial(X,2)
 
 # Feature Scaling
 print('Normalizing Data')
